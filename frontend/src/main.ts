@@ -1,6 +1,7 @@
 import { createApp } from "vue";
 import App from "./App.vue";
 import { createTaxLawApi } from "./lib/taxLawApi";
+import { createRelationsStore } from "./stores/relationsStore";
 import { createSearchStore } from "./stores/searchStore";
 import "./style.css";
 
@@ -10,4 +11,4 @@ const api = createTaxLawApi({
     timeoutMs: Number.isFinite(timeout) && timeout > 0 ? timeout : 10_000
 });
 
-createApp(App, { store: createSearchStore(api) }).mount("#app");
+createApp(App, { store: createSearchStore(api), relations: createRelationsStore(api) }).mount("#app");

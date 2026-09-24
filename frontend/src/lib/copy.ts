@@ -98,6 +98,38 @@ export const COPY = {
     "detail.copyLink": "Sao chép link nguồn",
     "detail.copied": "Đã sao chép",
 
+    // ui-copy.md §10.1 Văn bản liên quan
+    "relations.alert.repeals.title": "Văn bản {documentNumber} đã bị bãi bỏ hoặc thay thế tại ngày {asOf}",
+    "relations.alert.repeals.body":
+        "Nội dung điều khoản bên dưới có thể không còn áp dụng. Đối chiếu với văn bản bãi bỏ / thay thế trước khi sử dụng.",
+    "relations.alert.amends.title":
+        "Văn bản {documentNumber} có văn bản sửa đổi, bổ sung đang có hiệu lực tại ngày {asOf}",
+    "relations.alert.amends.body":
+        "Điều khoản này có thể đã được sửa đổi. Đối chiếu với văn bản sửa đổi trước khi sử dụng.",
+    "relations.alert.line": "{label} {documentNumber}, {range}",
+    "relations.alert.range.open": "từ {from} · không thời hạn kết thúc",
+    "relations.alert.range.closed": "từ {from} đến hết {to}",
+    "relations.alert.jump": "Xem văn bản liên quan",
+
+    "relations.title": "Văn bản liên quan",
+    "relations.context": "Quan hệ có hiệu lực tại ngày {asOf}",
+    "relations.group.incoming": "Văn bản khác tác động lên văn bản này",
+    "relations.group.outgoing": "Văn bản này tác động lên văn bản khác",
+    "relations.loading": "Đang tải văn bản liên quan…",
+    "relations.empty":
+        "Không có văn bản sửa đổi, bãi bỏ, hướng dẫn hay hợp nhất nào liên quan tới văn bản {documentNumber} có hiệu lực tại ngày {asOf}.",
+    "relations.empty.note": "Danh sách chỉ gồm các quan hệ đã có trong dữ liệu của hệ thống.",
+
+    "relations.error.notFound.title": "Không tìm thấy thông tin quan hệ của văn bản {documentNumber}",
+    "relations.error.notFound.body":
+        "Chưa kiểm tra được văn bản này có bị sửa đổi hay bãi bỏ tại ngày {asOf}. Vui lòng báo lại kèm mã yêu cầu.",
+    "relations.error.dataIntegrity.title": "Dữ liệu văn bản liên quan không nhất quán",
+    "relations.error.dataIntegrity.body":
+        "Hệ thống đã dừng hiển thị để tránh thông tin sai. Chưa kiểm tra được văn bản này có bị sửa đổi hay bãi bỏ tại ngày {asOf}. Vui lòng báo lại kèm mã yêu cầu.",
+    "relations.error.generic.title": "Không tải được văn bản liên quan",
+    "relations.error.generic.body":
+        "Chưa kiểm tra được văn bản này có bị sửa đổi hay bãi bỏ tại ngày {asOf}. Nội dung điều khoản ở trên vẫn hiển thị bình thường.",
+
     // --- FE-local, pending Design (integration-notes.md FE-08 / FE-16) ---
     "fe.result.previous": "Danh sách bên dưới là kết quả của lần tra cứu thành công trước (ngày {asOf}).",
     "fe.dataError.title": "Lỗi dữ liệu trong kết quả",

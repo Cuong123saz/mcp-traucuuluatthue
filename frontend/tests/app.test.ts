@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import App from "../src/App.vue";
+import { createRelationsStore } from "../src/stores/relationsStore";
 import { createSearchStore } from "../src/stores/searchStore";
 import { flush, manualApi, page, provision } from "./support";
 
@@ -10,8 +11,9 @@ const B = "2025-06-01";
 function setup() {
     const m = manualApi();
     const store = createSearchStore(m.api, { today: () => A });
-    const wrapper = mount(App, { props: { store }, attachTo: document.body });
-    return { ...m, store, wrapper };
+    const relations = createRelationsStore(m.api);
+    const wrapper = mount(App, { props: { store, relations }, attachTo: document.body });
+    return { ...m, store, relations, wrapper };
 }
 
 async function search(s: ReturnType<typeof setup>, q: string, items = [provision()], hasMore: boolean | null = false) {

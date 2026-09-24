@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { formatCalendarDate } from "./lib/calendarDate";
 import { t } from "./lib/copy";
 import { inspectProvision, provisionKey, type ReceivedProvision } from "./lib/provision";
+import type { RelationsStore } from "./stores/relationsStore";
 import type { SearchStore } from "./stores/searchStore";
 import DetailPanel from "./components/DetailPanel.vue";
 import ErrorBanner from "./components/ErrorBanner.vue";
@@ -10,8 +11,21 @@ import PaginationBar from "./components/PaginationBar.vue";
 import ProvisionCard from "./components/ProvisionCard.vue";
 import SearchBar from "./components/SearchBar.vue";
 
-const props = defineProps<{ store: SearchStore }>();
+const props = defineProps<{ store: SearchStore; relations: RelationsStore }>();
 const s = props.store;
+const relations = props.relations;
+
+// Flow 3a: relations follow the open selection only. A new selection aborts
+// the previous request; closing the panel cancels it. Searching again or
+// editing the form does not change the selection, so it does not reload.
+watch(
+    () => s.detail.value,
+    (selection) => {
+        if (selection) void relations.load(selection.provision.documentNumber, selection.asOf);
+        else relations.cancel();
+    },
+    { immediate: true }
+);
 
 const resultsHeading = ref<HTMLElement | null>(null);
 let detailTrigger: HTMLElement | null = null;
@@ -202,5 +216,12 @@ async function closeDetail() {
     </section>
   </div>
 
-  <DetailPanel v-if="s.detail.value" :key="provisionKey(s.detail.value.provision)" :selection="s.detail.value" @close="closeDetail" />
+  <DetailPanel
+    v-if="s.detail.value"
+    :key="provisionKey(s.detail.value.provision)"
+    :selection="s.detail.value"
+    :relations="relations.state.value"
+    @close="closeDetail"
+    @retry-relations="relations.retry()"
+  />
 </template>

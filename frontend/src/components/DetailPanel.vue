@@ -3,9 +3,12 @@ import { computed, nextTick, onMounted, ref } from "vue";
 import { formatCalendarDate } from "../lib/calendarDate";
 import { t } from "../lib/copy";
 import { inspectProvision } from "../lib/provision";
+import type { RelationsState } from "../stores/relationsStore";
 import type { DetailSelection } from "../stores/searchStore";
 import CopyButton from "./CopyButton.vue";
 import EffectiveBadge from "./EffectiveBadge.vue";
+import RelatedDocuments from "./RelatedDocuments.vue";
+import RelationAlert from "./RelationAlert.vue";
 import SourceLink from "./SourceLink.vue";
 
 /**
@@ -13,13 +16,25 @@ import SourceLink from "./SourceLink.vue";
  * already returns the full body). No REST detail call until Backend settles
  * GET /documents/:number?articleKey (conflict C-06). asOf is the snapshot's.
  */
-const props = defineProps<{ selection: DetailSelection }>();
-const emit = defineEmits<{ close: [] }>();
+const props = defineProps<{ selection: DetailSelection; relations: RelationsState }>();
+const emit = defineEmits<{ close: []; retryRelations: [] }>();
 
 const panel = ref<HTMLElement | null>(null);
 const closeButton = ref<HTMLButtonElement | null>(null);
 const p = computed(() => props.selection.provision);
 const integrity = computed(() => inspectProvision(p.value, props.selection.asOf));
+
+/**
+ * Relations are loaded in parallel by the parent (flow 3a); the provision
+ * content never waits for them. A state that belongs to another
+ * documentNumber/asOf is shown as loading, never as this document's result.
+ */
+const relationsState = computed<RelationsState>(() => {
+    const r = props.relations;
+    if (r.status === "idle") return r;
+    const matches = r.input.documentNumber === p.value.documentNumber && r.input.asOf === props.selection.asOf;
+    return matches ? r : { status: "idle" };
+});
 
 onMounted(async () => {
     await nextTick();
@@ -72,6 +87,12 @@ function onKeydown(event: KeyboardEvent) {
       <h2 id="detail-heading" class="detail-heading">{{ p.heading || p.articleKey }}</h2>
       <p class="doc-line">{{ p.documentNumber }} · {{ p.title }}</p>
       <EffectiveBadge :effective="integrity.effective" :as-of="selection.asOf" />
+      <RelationAlert
+        v-if="relationsState.status === 'success'"
+        :incoming="relationsState.data.incoming"
+        :document-number="p.documentNumber"
+        :as-of="selection.asOf"
+      />
 
       <p v-if="p.body" class="detail-body">{{ p.body }}</p>
       <p v-else class="detail-body body-empty">{{ t("card.body.empty") }}</p>
@@ -84,6 +105,13 @@ function onKeydown(event: KeyboardEvent) {
           label-key="detail.copyLink"
         />
       </div>
+
+      <RelatedDocuments
+        :state="relationsState"
+        :document-number="p.documentNumber"
+        :as-of="selection.asOf"
+        @retry="emit('retryRelations')"
+      />
 
       <dl class="detail-meta">
         <dt class="detail-meta-title">{{ t("detail.meta.heading") }}</dt>
