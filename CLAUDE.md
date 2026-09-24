@@ -30,11 +30,11 @@ MCP server `tax-law` được khai báo trong `.mcp.json`, Claude Code tự kh�
 
 - Ranh giới giữa các lớp và quy tắc nghiệp vụ: xem skill `backend-conventions`. Test sẽ fail nếu vi phạm.
 - Đổi field API thì phải cập nhật contract trong `artifacts/backend/` trước, rồi mới sửa FE.
-- Dữ liệu seed hiện là dữ liệu minh họa (`DEMO-TAX-*`), chưa phải luật thật.
+- Dữ liệu luật nằm ở `data/laws/*.json`, nạp vào DB bằng `npm run db:import`. Nội dung hiện là bản tóm tắt, đã duyệt dưới nhãn `demo-local`, chưa đối chiếu nguyên văn.
 - Không tạo thêm file báo cáo trong `artifacts/` nếu người dùng không yêu cầu.
 
 ## Việc đang mở
 
 - FR-01 / C-08 (frontend): response 200 thiếu nguồn hoặc sai khoảng hiệu lực không được ghi đè kết quả hợp lệ trước đó. Chi tiết ở `artifacts/coordinator/final-review-summary.md` mục 7.
 - Tool chưa làm: `get_document_timeline`, `list_tax_documents`.
-- Nạp dữ liệu luật thuế thật vào seed.
+- Đối chiếu nguyên văn và bổ sung thêm văn bản trong `data/laws/`.

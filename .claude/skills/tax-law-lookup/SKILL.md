@@ -24,4 +24,4 @@ description: Trả lời câu hỏi về luật thuế Việt Nam bằng cách t
 
 ## Lưu ý dữ liệu
 
-DB hiện chỉ có dữ liệu minh họa (`DEMO-TAX-*`, link `example.invalid`), chưa phải luật thật. Nếu kết quả là dữ liệu demo thì phải nói rõ điều đó.
+Nội dung điều khoản trong DB là **bản tóm tắt** (bắt đầu bằng `[Tóm tắt]`), không phải nguyên văn. Luôn nói rõ điều này và gửi kèm `sourceUrl` để người dùng đối chiếu văn bản gốc.
