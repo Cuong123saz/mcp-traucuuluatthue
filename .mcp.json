@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "tax-law": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["node_modules/tsx/dist/cli.mjs", "src/taxlaw/mcp/server.ts"],
+      "env": {
+        "DATABASE_URL": "${DATABASE_URL:-postgres://taxlaw:taxlaw@localhost:5432/taxlaw}"
+      }
+    }
+  }
+}
