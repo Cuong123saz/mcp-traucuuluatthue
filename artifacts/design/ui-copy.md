@@ -163,6 +163,61 @@ Không hiển thị `error.message` thô của server nếu nó không phải c�
 | `detail.copyLink` | Sao chép link nguồn |
 | `detail.copied` | Đã sao chép |
 
+### 10.1 Văn bản liên quan
+
+Đặc tả: `design-spec.md` mục 11. `{documentNumber}` trong các câu dưới là số hiệu văn bản **đang xem**, trừ `relations.alert.line` (là số hiệu văn bản liên quan). `{label}` chèn nguyên văn từ API.
+
+**Cảnh báo (RelationAlert)**
+
+| Key | Nội dung |
+|---|---|
+| `relations.alert.repeals.title` | Văn bản {documentNumber} đã bị bãi bỏ hoặc thay thế tại ngày {asOf} |
+| `relations.alert.repeals.body` | Nội dung điều khoản bên dưới có thể không còn áp dụng. Đối chiếu với văn bản bãi bỏ / thay thế trước khi sử dụng. |
+| `relations.alert.amends.title` | Văn bản {documentNumber} có văn bản sửa đổi, bổ sung đang có hiệu lực tại ngày {asOf} |
+| `relations.alert.amends.body` | Điều khoản này có thể đã được sửa đổi. Đối chiếu với văn bản sửa đổi trước khi sử dụng. |
+| `relations.alert.line` | {label} {documentNumber}, {range} |
+| `relations.alert.range.open` | từ {from} · không thời hạn kết thúc |
+| `relations.alert.range.closed` | từ {from} đến hết {to} |
+| `relations.alert.jump` | Xem văn bản liên quan |
+
+Ví dụ render:
+
+- NQ 954/2020/UBTVQH14 tại 24/09/2026: tiêu đề "Văn bản 954/2020/UBTVQH14 đã bị bãi bỏ hoặc thay thế tại ngày 24/09/2026"; dòng "Bị bãi bỏ / thay thế bởi 110/2025/UBTVQH15, từ 01/01/2026 · không thời hạn kết thúc" (nếu `effectiveTo` null).
+- Luật 48/2024/QH15 tại 24/09/2026: tiêu đề "Văn bản 48/2024/QH15 có văn bản sửa đổi, bổ sung đang có hiệu lực tại ngày 24/09/2026"; dòng "Được sửa đổi, bổ sung bởi 204/2025/QH15, từ 01/07/2025 đến hết 31/12/2026".
+
+**Mục "Văn bản liên quan"**
+
+| Key | Nội dung |
+|---|---|
+| `relations.title` | Văn bản liên quan |
+| `relations.context` | Quan hệ có hiệu lực tại ngày {asOf} |
+| `relations.group.incoming` | Văn bản khác tác động lên văn bản này |
+| `relations.group.outgoing` | Văn bản này tác động lên văn bản khác |
+| `relations.loading` | Đang tải văn bản liên quan… |
+| `relations.empty` | Không có văn bản sửa đổi, bãi bỏ, hướng dẫn hay hợp nhất nào liên quan tới văn bản {documentNumber} có hiệu lực tại ngày {asOf}. |
+| `relations.empty.note` | Danh sách chỉ gồm các quan hệ đã có trong dữ liệu của hệ thống. |
+
+Khoảng hiệu lực của từng mục dùng lại `card.effective.open` / `card.effective.closed` (mục 5). Link nguồn dùng lại `card.source`, `card.source.invalid`, `card.source.missing`.
+
+**Lỗi trong mục (không ảnh hưởng nội dung điều khoản)**
+
+| Key | Nội dung |
+|---|---|
+| `relations.error.notFound.title` | Không tìm thấy thông tin quan hệ của văn bản {documentNumber} |
+| `relations.error.notFound.body` | Chưa kiểm tra được văn bản này có bị sửa đổi hay bãi bỏ tại ngày {asOf}. Vui lòng báo lại kèm mã yêu cầu. |
+| `relations.error.dataIntegrity.title` | Dữ liệu văn bản liên quan không nhất quán |
+| `relations.error.dataIntegrity.body` | Hệ thống đã dừng hiển thị để tránh thông tin sai. Chưa kiểm tra được văn bản này có bị sửa đổi hay bãi bỏ tại ngày {asOf}. Vui lòng báo lại kèm mã yêu cầu. |
+| `relations.error.generic.title` | Không tải được văn bản liên quan |
+| `relations.error.generic.body` | Chưa kiểm tra được văn bản này có bị sửa đổi hay bãi bỏ tại ngày {asOf}. Nội dung điều khoản ở trên vẫn hiển thị bình thường. |
+
+Mã yêu cầu và nút dùng lại `error.requestId`, `error.requestId.copy`, `error.retry`.
+
+Ghi chú viết:
+
+- Cảnh báo nói về **văn bản**, không nói "điều khoản này đã bị bãi bỏ" — API chỉ có quan hệ ở cấp văn bản (DA-13). Dùng "có thể".
+- Không viết "Văn bản còn hiệu lực" hay "Không bị sửa đổi" ở trạng thái rỗng; chỉ nói không có quan hệ trong dữ liệu tại ngày đó.
+- Không viết "Xem phiên bản mới" / "Chuyển sang văn bản thay thế" — hệ thống không điều hướng hay fallback.
+
 ## 11. Chuỗi chưa dùng trong v0.1
 
 Timeline và danh sách văn bản chưa được build (C-02, C-03, C-05 — xem `design-spec.md` mục 9). Không viết copy trước cho các màn đó để tránh việc Frontend hiểu nhầm là đã chốt và đem ra dùng.
@@ -177,4 +232,6 @@ Timeline và danh sách văn bản chưa được build (C-02, C-03, C-05 — xe
 | "Tìm thấy khoảng {n} kết quả" | API không trả tổng số | "Đang xem {from}–{to}" |
 | "Đang hiển thị kết quả phù hợp nhất" | Thứ tự sắp xếp chưa được contract công bố (DA-03) | Không nói gì về thứ tự |
 | "Xem phiên bản gần nhất" | Hệ thống không fallback version | "Thử chọn ngày áp dụng khác" |
+| "Điều khoản này đã bị bãi bỏ" | Quan hệ chỉ ở cấp văn bản, không biết điều nào bị ảnh hưởng | `relations.alert.repeals.title` (nói về văn bản) |
+| "Văn bản chưa bị sửa đổi" / "Văn bản còn nguyên hiệu lực" | Rỗng chỉ nghĩa là không có quan hệ trong dữ liệu tại ngày đó | `relations.empty` + `relations.empty.note` |
 | Hiển thị SQL, stack trace, tên bảng | Contract cấm lộ chi tiết nội bộ | Mã yêu cầu |

@@ -91,6 +91,43 @@ Ghi chú:
 - Panel không đóng khi danh sách phía sau thay đổi. Nếu người dùng search lại trong lúc panel mở, panel giữ nguyên nội dung cũ; `asOf` hiển thị trong panel vẫn là `asOf` đã dùng để lấy nội dung đó.
 - 404 ở đây là kết quả nghiệp vụ hợp lệ, không phải sự cố hệ thống. Copy không được mang giọng "đã xảy ra lỗi".
 
+## 3a. Flow phụ — Văn bản liên quan trong panel
+
+Chạy song song với việc hiển thị nội dung điều khoản, bắt đầu ngay khi panel mở. Đặc tả: `design-spec.md` mục 11.
+
+```
+[Panel mở với selection {provision, asOf}]
+   │  nội dung điều khoản render ngay (không chờ)
+   │  RelatedDocuments: status = loading  (vị trí cảnh báo: trống)
+   ▼
+GET /relations?documentNumber={provision.documentNumber}&asOf={selection.asOf}
+   │
+   ├─⟂ 200, incoming có repeals/amends
+   │       → RelationAlert xuất hiện dưới EffectiveBadge (role="status")
+   │       → RelatedDocuments: ngữ cảnh + nhóm incoming / outgoing
+   │
+   ├─⟂ 200, có quan hệ nhưng không có incoming repeals/amends
+   │       → không cảnh báo; RelatedDocuments hiển thị danh sách
+   │
+   ├─⟂ 200, incoming = [] và outgoing = []
+   │       → RelatedDocuments: relations.empty + relations.empty.note
+   │
+   ├─⟂ 404 NOT_FOUND / 409 DATA_INTEGRITY_ERROR
+   │       → banner lỗi nhỏ TRONG mục, có requestId, KHÔNG có Thử lại
+   │
+   └─⟂ 503 / 500 / lỗi mạng
+           → banner lỗi nhỏ TRONG mục, có requestId (nếu có) và Thử lại
+                  └─ bấm Thử lại → chỉ gọi lại /relations, status = loading
+```
+
+Điểm bắt buộc:
+
+- Mọi nhánh lỗi chỉ ảnh hưởng mục "Văn bản liên quan". Heading, badge, body, nguồn, "Thông tin phiên bản" giữ nguyên; panel không đóng, không chuyển sang `ErrorState` toàn panel.
+- `asOf` là của selection (lần tra đã mở panel). Người dùng đổi ngày ở ô nhập hoặc search lại khi panel đang mở: không gọi lại `/relations`, không đổi nội dung mục.
+- Mở điều khoản khác (selection đổi) → hủy/bỏ qua response cũ, chạy lại flow này. Đóng panel → hủy request.
+- Bấm "Xem văn bản liên quan" trong cảnh báo → cuộn tới mục, focus vào tiêu đề mục. Bấm "Xem nguồn" của một mục → mở tab mới, panel không đổi.
+- Số hiệu văn bản liên quan không bấm được; không có điều hướng sang văn bản đó trong app (DA-15).
+
 ## 4. Chi tiết các state
 
 ### 4.1 Loading
@@ -170,7 +207,8 @@ Khi C-04 được đóng theo hướng `hasMore` luôn là boolean, xóa toàn b
 | `Enter` | Trong ô `q` hoặc `asOf` | Submit form |
 | `Tab` | Toàn trang | Đi qua: q → asOf → limit → Tra cứu → từng card (Xem nguồn → Xem chi tiết) → pagination |
 | `Esc` | Panel chi tiết đang mở | Đóng panel, trả focus về nút đã mở |
-| `Tab` | Trong panel | Focus bị giữ trong panel (focus trap) |
+| `Tab` | Trong panel | Focus bị giữ trong panel (focus trap). Thứ tự: Đóng → Xem văn bản liên quan (nếu có cảnh báo) → Xem nguồn → Sao chép link nguồn → nguồn từng mục quan hệ → Thử lại / Sao chép mã (nếu lỗi quan hệ) → Sao chép mã phiên bản |
+| `Enter` | Trên "Xem văn bản liên quan" | Cuộn tới mục "Văn bản liên quan", focus vào tiêu đề mục |
 
 ## 8. Thông báo cho screen reader
 
@@ -180,6 +218,8 @@ Khi C-04 được đóng theo hướng `hasMore` luôn là boolean, xóa toàn b
 | Tải xong có kết quả | `result.liveRegion` với số lượng và `asOf` |
 | Không có kết quả | Tiêu đề của `empty.noResults` |
 | Lỗi | Tiêu đề lỗi tương ứng |
+| Cảnh báo văn bản bị bãi bỏ / sửa đổi xuất hiện trong panel | Tiêu đề `relations.alert.*.title` (qua `role="status"`) |
+| Lỗi tải văn bản liên quan | `relations.error.*.title` |
 
 Vùng kết quả là `aria-live="polite"`. Không dùng `assertive` — tra cứu không phải tình huống khẩn cấp và sẽ cắt ngang việc đọc nội dung.
 

@@ -29,6 +29,9 @@ Phiên bản: v0.1 (2026-09-24). Đối tượng: Frontend Agent.
 | `SourceLink` | Link nguồn ngoài | sourceUrl |
 | `Pagination` | Chuyển trang | limit, offset, hasMore, itemCount |
 | `ProvisionDetailPanel` | Chi tiết một điều khoản | documentNumber, articleKey, asOf |
+| `RelationAlert` | Cảnh báo văn bản bị bãi bỏ / sửa đổi (trong panel) | incoming, documentNumber, asOf |
+| `RelatedDocuments` | Mục "Văn bản liên quan" + các state (trong panel) | documentNumber, asOf |
+| `RelationItemRow` | Một `RelationItem` | item, direction |
 | `LoadingState` | Skeleton | count |
 | `EmptyState` | 3 biến thể | variant |
 | `ErrorState` | Lỗi theo code | code, message, requestId, onRetry |
@@ -172,6 +175,101 @@ Mở bằng `get_tax_provision` với `documentNumber`, `articleKey`, `asOf` l�
 - Khối "Thông tin phiên bản" ở cuối: `Mã phiên bản: {versionId}` (có nút copy), `Tra cứu tại ngày: {asOf}`.
 - Panel có state riêng: loading (skeleton trong panel), error (dùng `ErrorState` thu nhỏ, `NOT_FOUND` có copy riêng — xem `ui-copy.md`).
 - Không đóng panel khi kết quả list phía sau thay đổi; nếu người dùng search lại trong lúc panel mở, panel vẫn giữ nội dung cũ cho tới khi người dùng đóng.
+- Panel chứa thêm `RelationAlert` (dưới `EffectiveBadge`, trên `body`) và `RelatedDocuments` (sau khối nguồn, trước "Thông tin phiên bản"). Xem mục 10a.
+
+## 10a. Văn bản liên quan (`RelationAlert`, `RelatedDocuments`, `RelationItemRow`)
+
+Đặc tả đầy đủ: `design-spec.md` mục 11. Copy: `ui-copy.md` mục 10.1.
+
+### Gọi API
+
+- Một request duy nhất khi panel mở: `GET /relations?documentNumber={provision.documentNumber}&asOf={selection.asOf}`. Hai tham số, không thêm gì khác (contract từ chối tham số lạ).
+- `asOf` lấy từ `selection.asOf` (snapshot của lần tra), không từ `formState`, không ngày hôm nay.
+- Request chạy **song song, độc lập** với phần nội dung điều khoản. Nội dung điều khoản render ngay, không chờ quan hệ.
+- Đổi `selection` (mở điều khoản khác) thì hủy request cũ (`AbortController`) hoặc bỏ qua response không khớp `documentNumber + asOf` hiện tại. Đóng panel thì hủy request.
+- Hai điều khoản cùng văn bản cùng `asOf` có thể dùng lại kết quả trong phiên (tùy chọn). Không dùng lại qua `asOf` khác.
+- Không retry tự động.
+
+State riêng, tách khỏi `resultState` của search:
+
+```
+relationsState = { status: "loading" | "success" | "error",
+                   data?: { outgoing: RelationItem[], incoming: RelationItem[] },
+                   error?: { code, requestId } }
+```
+
+Lỗi ở `relationsState` **không** được ghi vào `resultState`, không đổi state của panel, không đóng panel.
+
+### RelationAlert
+
+Input: `incoming: RelationItem[]`, `documentNumber`, `asOf`. Chỉ render khi `relationsState.status === "success"`.
+
+```
+const repeals = incoming.filter(i => i.relationType === "repeals");
+const amends  = incoming.filter(i => i.relationType === "amends");
+if (repeals.length + amends.length === 0) render nothing;
+titleKey = repeals.length > 0 ? "relations.alert.repeals.title" : "relations.alert.amends.title";
+bodyKey  = repeals.length > 0 ? "relations.alert.repeals.body"  : "relations.alert.amends.body";
+lines    = [...repeals, ...amends];   // giữ thứ tự API trong từng nhóm
+```
+
+- Quyết định dựa trên `relationType` + việc nằm trong `incoming`. **Không** phân tích chuỗi `label` (DA-18).
+- Markup: `<div class="banner banner-warning" role="status">`, thêm `border-left-width: 4px` (giống `.card-data-error`). Tiêu đề dùng `.banner-title`. Chỉ dùng `--warn-bg`, `--warn-text`, `--warn-border`.
+- Mỗi dòng: `relations.alert.line` = `{label} {documentNumber}, {range}` với `{range}` là `relations.alert.range.open` (khi `effectiveTo === null`) hoặc `relations.alert.range.closed` (xem `ui-copy.md`).
+- Cuối banner: `<a href="#detail-relations">` với chữ `relations.alert.jump`. Bấm thì cuộn tới mục và `focus()` vào `<h3 id="detail-relations-heading" tabindex="-1">`.
+- Không có nút đóng/ẩn cảnh báo.
+- Không đổi `EffectiveBadge` của điều khoản.
+
+### RelatedDocuments
+
+```
+<section id="detail-relations" class="detail-relations" aria-labelledby="detail-relations-heading" aria-busy={loading}>
+  <h3 id="detail-relations-heading" tabindex="-1">Văn bản liên quan</h3>
+  … theo status …
+</section>
+```
+
+- Vị trí: sau `.detail-source`, trước `.detail-meta`. Ngăn cách bằng `border-top: 1px solid var(--border-soft)`, `margin-top: 20px`, `padding-top: 12px` (giống `.detail-meta`). Tiêu đề 14px/700.
+
+| status | Render |
+|---|---|
+| `loading` | `<p>` `relations.loading` (12px `--muted`) + 2 `.sk` (một thanh `.sk-short`). Không render dòng ngữ cảnh. |
+| `success`, `incoming.length + outgoing.length > 0` | `<p>` `relations.context` (12px `--muted`) → nhóm `incoming` (nếu có) → nhóm `outgoing` (nếu có). |
+| `success`, cả hai rỗng | `<p>` `relations.context` → `<p>` `relations.empty` (14px) → `<p>` `relations.empty.note` (12px `--muted`). |
+| `error` | `<div class="banner banner-error">` theo bảng lỗi dưới. |
+
+Nhóm: `<h4>` 13px/600 `--muted` (`relations.group.incoming` / `relations.group.outgoing`) + `<ul>` không bullet, `gap: 8px`. Nhóm rỗng: không render cả `<h4>`.
+
+Bảng lỗi (copy ở `ui-copy.md` mục 10.1):
+
+| code | Copy | requestId | Thử lại |
+|---|---|---|---|
+| `NOT_FOUND` (404) | `relations.error.notFound.*` | Có | Không |
+| `DATA_INTEGRITY_ERROR` (409) | `relations.error.dataIntegrity.*` | Có | Không |
+| `DEPENDENCY_UNAVAILABLE` (503), `INTERNAL_ERROR` (500) | `relations.error.generic.*` | Có | Có |
+| `INVALID_ARGUMENT` (400) | `relations.error.generic.*` | Có | Không |
+| Mất mạng / không parse được | `relations.error.generic.*` | Không (không có) | Có |
+
+Banner lỗi dùng `.btn .btn-small` cho "Thử lại"; bấm thì `status = loading` và gọi lại chỉ `/relations`.
+
+### RelationItemRow
+
+```
+<li class="relation-item">
+  <span class="relation-label [warn-label nếu incoming && (repeals|amends)]">{label}</span>
+  <p class="relation-doc"><strong>{documentNumber}</strong> · {title}</p>
+  <p class="relation-range">{card.effective.open | card.effective.closed}</p>
+  <SourceLink url={sourceUrl} />
+</li>
+```
+
+- `.relation-item`: `background: var(--surface)`, `border: 1px solid var(--border-soft)`, `border-radius: 6px`, `padding: 12px`, flex dọc `gap: 4px`.
+- `.relation-label` thường: 12px/600, `color: var(--muted)`, `border: 1px solid var(--border-soft)`, bo 4px, padding `2px 8px`, `align-self: flex-start`. Biến thể cảnh báo dùng lại `.warn-label` có sẵn.
+- `.relation-doc`: 14px, `color: var(--text)`; `title` clamp 2 dòng. `documentNumber` không bị cắt.
+- `.relation-range`: 12px `--muted`. Dùng đúng hàm format ngày của badge (tách chuỗi, không qua `Date`). **Không** dùng `.badge-applicable` (xanh) cho khoảng này.
+- `documentNumber` không phải link, không phải nút (DA-15). Chỉ `SourceLink` là interactive.
+- `label` render dạng text nguyên văn, không tự dịch/đổi.
+- Dữ liệu khuyết (backend đảm bảo không xảy ra; nếu có): `sourceUrl` hỏng → `SourceLink` tự hiện "Nguồn không hợp lệ"/"Thiếu nguồn"; `effectiveTo === null` → `card.effective.open`; `title` rỗng → chỉ hiện `documentNumber`. Không bỏ qua mục.
 
 ## 11. LoadingState và stale results
 
@@ -252,6 +350,7 @@ resultState = { status, items, pagination, error, requestId }
 - Không thêm tham số không có trong contract (ví dụ `documentNumber` cho `/search` — contract nói rõ không nhận).
 - Không tự bỏ `asOf` hoặc thay bằng ngày server.
 - Không fallback sang version khác khi `NOT_FOUND`.
+- Không tự điều hướng / tự tra điều khoản của văn bản liên quan; không đổi `EffectiveBadge` dựa trên dữ liệu `/relations`.
 - Không gộp/ghép nội dung từ nhiều kết quả thành một card.
 - Không cache kết quả qua các `asOf` khác nhau rồi tái sử dụng; mỗi `asOf` là một truy vấn riêng.
 - Không viết SQL, không gọi DB, không tự dựng lại logic chọn version ở client.

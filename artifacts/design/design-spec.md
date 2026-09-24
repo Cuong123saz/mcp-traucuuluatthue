@@ -18,6 +18,7 @@ Tài liệu này bám theo `artifacts/backend/api-contract.md` v0.2 và `artifac
 |---|---|---|---|
 | Tìm điều khoản theo từ khóa tại `asOf` | `search_tax_law` / `GET /search` | Hợp đồng đã ổn (final-summary) | **P0 — thiết kế đầy đủ** |
 | Xem chi tiết một điều khoản | `get_tax_provision` / `GET /documents/:number?articleKey&asOf` | Hợp đồng đã ổn | **P0 — thiết kế đầy đủ** |
+| Xem văn bản liên quan (sửa đổi, bãi bỏ, hướng dẫn, hợp nhất) trong panel chi tiết | `GET /relations?documentNumber&asOf` | Có contract | **P1 — thiết kế đầy đủ, mục 11** |
 | Xem lịch sử version của văn bản | `get_document_timeline` | Bị chặn bởi C-02, C-05 | P2 — chỉ phác thảo, ẩn sau feature flag |
 | Danh sách văn bản áp dụng tại `asOf` | `list_tax_documents` | Bị chặn bởi C-03 | P2 — không thiết kế trong v0.1 |
 | Xem toàn bộ provisions của một văn bản | `GET /documents/:number` không kèm `articleKey` | Bị chặn bởi C-01 | P2 — không thiết kế trong v0.1 |
@@ -53,7 +54,7 @@ Một trang, ba vùng dọc, tối đa 1 cột nội dung rộng 720–880px că
 └──────────────────────────────────────────────────────────┘
 ```
 
-Panel chi tiết (`get_tax_provision`) hiện cùng các field nhưng `body` đầy đủ, không rút gọn, cộng khối "Thông tin phiên bản" (`versionId`, `asOf` đã dùng để tra).
+Panel chi tiết (`get_tax_provision`) hiện cùng các field nhưng `body` đầy đủ, không rút gọn, cộng khối "Văn bản liên quan" (mục 11) và khối "Thông tin phiên bản" (`versionId`, `asOf` đã dùng để tra).
 
 ## 4. Các thành phần bắt buộc
 
@@ -170,6 +171,12 @@ Những điều UI cần nhưng `api-contract.md` v0.2 / `mcp-tools.md` v0.2 **c
 | DA-10 | **Ngày là chuỗi `YYYY-MM-DD` không kèm timezone.** | Nếu FE parse qua `new Date()` rồi format theo local timezone sẽ lệch một ngày. | Bắt buộc coi là ngày lịch thuần: tách chuỗi để format, không đưa qua `Date`/UTC. Ghi rõ ở `component-guidelines.md`. | — (quyết định design) |
 | DA-11 | **Không có field ngôn ngữ / i18n.** | Nội dung điều khoản là tiếng Việt có dấu và search phân biệt dấu. | UI tiếng Việt. Không làm bộ chuyển ngôn ngữ. Không tự bỏ dấu từ khóa trước khi gửi vì sẽ làm hỏng kết quả. | — (quyết định design) |
 | DA-12 | **`sourceUrl` không được backend kiểm chứng domain và tool không fetch nó.** | Link ngoài là bề mặt rủi ro. | Coi là link ngoài không tin cậy: `rel="noopener noreferrer"`, hiện hostname trước khi người dùng bấm, không nhúng iframe, không preview. | Design (đã quyết) |
+| DA-13 | **Quan hệ ở cấp văn bản, không ở cấp điều khoản.** `GET /relations` nhận `documentNumber`, không nhận `articleKey`, và `RelationItem` không nói điều nào bị sửa/bãi bỏ. | Người dùng đang xem một điều cụ thể và muốn biết chính điều đó có bị sửa không. | Mọi câu chữ nói về **văn bản**, không nói "điều khoản này đã bị sửa". Cảnh báo dùng "có thể" và hướng người dùng đối chiếu văn bản kia. Không suy đoán điều bị ảnh hưởng. | Backend (nếu muốn thêm phạm vi điều khoản) |
+| DA-14 | **Contract không công bố thứ tự của `outgoing` / `incoming`.** | Danh sách cần thứ tự ổn định. | Giữ nguyên thứ tự API trả, không tự sắp xếp, không nói gì về thứ tự. | Backend |
+| DA-15 | **Không có màn xem văn bản liên quan trong app** (C-01: không có document detail không kèm `articleKey`). | Người dùng muốn "đi tới" văn bản sửa đổi. | Số hiệu văn bản liên quan là chữ thường, **không** phải link/nút. Chỉ có link nguồn ngoài `sourceUrl` của mục quan hệ. | Backend (C-01) |
+| DA-16 | **`effectiveFrom`/`effectiveTo` của `RelationItem` là khoảng hiệu lực của quan hệ**, không nhất thiết trùng khoảng hiệu lực version của điều khoản đang xem. Hai nguồn này có thể trông mâu thuẫn (ví dụ điều khoản vẫn được trả tại `asOf` trong khi văn bản có quan hệ bãi bỏ đang hiệu lực). | UI không được tự hòa giải hai khoảng. | Hiển thị cả hai nguyên trạng: badge của điều khoản giữ nguyên, cảnh báo quan hệ hiện riêng. Không đổi trạng thái badge điều khoản dựa trên quan hệ. | Backend + DB (xác nhận ngữ nghĩa) |
+| DA-17 | **`404 NOT_FOUND` từ `/relations` khi điều khoản đã hiển thị được** là trường hợp bất thường (văn bản có trong search nhưng không có trong dữ liệu quan hệ). | Cần copy riêng, không được hiểu là "không có quan hệ". | Hiện lỗi nhỏ trong mục, nói rõ chưa kiểm tra được quan hệ; không hiện empty state. | Backend (xác nhận có thể xảy ra hay không) |
+| DA-18 | **`label` là chuỗi hiển thị, không phải khóa logic.** | Cảnh báo cần biết quan hệ nào là bị bãi bỏ / bị sửa đổi. | FE hiển thị `label` nguyên văn trong danh sách, nhưng quyết định có cảnh báo hay không **chỉ** dựa vào `relationType` và mảng chứa nó (`incoming`), không phân tích chuỗi `label`. | — (quyết định design) |
 
 Không assumption nào trong bảng này yêu cầu đổi API contract. Nếu Backend muốn đóng DA-01/DA-02/DA-04 thì đó là thay đổi contract thuộc Backend Agent; Design sẽ cập nhật spec sau.
 
@@ -186,3 +193,106 @@ Không assumption nào trong bảng này yêu cầu đổi API contract. Nếu B
 ## 10. Ngoài phạm vi v0.1
 
 Không thiết kế: đăng nhập/phân quyền, lưu tra cứu, so sánh hai version cạnh nhau, tải PDF, bình luận, dark mode, biểu đồ, thông báo. Những thứ này chưa có dữ liệu hoặc endpoint hỗ trợ và sẽ làm Frontend không kịp demo.
+
+## 11. Văn bản liên quan (trong panel chi tiết)
+
+Nguồn dữ liệu: `GET /relations?documentNumber={p.documentNumber}&asOf={selection.asOf}`. `asOf` là ngày của lần tra đã mở panel (giống phần còn lại của panel), **không** phải ngày hôm nay hay giá trị đang gõ trong ô.
+
+Mục tiêu: cho người dùng biết văn bản chứa điều khoản đang xem có bị văn bản khác bãi bỏ / thay thế hoặc sửa đổi tại ngày tra cứu hay không, và liệt kê các quan hệ khác để tự kiểm chứng qua link nguồn.
+
+### 11.1 Vị trí trong panel
+
+Hai phần, cùng lấy từ **một** request:
+
+```
+┌ Panel chi tiết ─────────────────────────────────┐
+│ Chi tiết điều khoản                     [Đóng]  │
+│ [Điều 9] heading                                │
+│ 48/2024/QH15 · title                            │
+│ (EffectiveBadge của điều khoản)                 │
+│ ┌ A. RelationAlert (chỉ khi có) ──────────────┐ │
+│ │ ⚠ Văn bản 48/2024/QH15 có văn bản sửa đổi,  │ │
+│ │   bổ sung đang có hiệu lực tại 24/09/2026   │ │
+│ │ • Được sửa đổi, bổ sung bởi 204/2025/QH15   │ │
+│ │ Xem văn bản liên quan                       │ │
+│ └─────────────────────────────────────────────┘ │
+│ body đầy đủ …                                   │
+│ [Xem nguồn ↗] [Sao chép link nguồn]             │
+│ ── B. Văn bản liên quan ─────────────────────── │
+│ Quan hệ có hiệu lực tại ngày 24/09/2026         │
+│ Văn bản khác tác động lên văn bản này           │
+│  ┌ RelationItem ─────────────────────────────┐  │
+│  │ [Được sửa đổi, bổ sung bởi]               │  │
+│  │ 204/2025/QH15 · title                     │  │
+│  │ Từ 01/07/2025 đến hết 31/12/2026          │  │
+│  │ Xem nguồn ↗ hostname                      │  │
+│  └───────────────────────────────────────────┘  │
+│ Văn bản này tác động lên văn bản khác           │
+│  … (ẩn nhóm nếu rỗng)                           │
+│ ── Thông tin phiên bản ──────────────────────── │
+└─────────────────────────────────────────────────┘
+```
+
+- **A. RelationAlert**: ngay dưới `EffectiveBadge`, trên `body`. Chỉ render khi request thành công **và** `incoming` có ít nhất một mục `relationType` là `repeals` hoặc `amends`. Không render gì ở vị trí này khi loading, rỗng, lỗi, hoặc chỉ có quan hệ khác.
+- **B. Mục "Văn bản liên quan"**: sau khối nguồn (`detail-source`), trước khối "Thông tin phiên bản". Mục này luôn render (có tiêu đề) và chứa mọi trạng thái loading / rỗng / lỗi.
+
+### 11.2 Cảnh báo (RelationAlert)
+
+Đây là phần quan trọng nhất của tính năng. Quy tắc:
+
+| Điều kiện trong `incoming` | Tiêu đề cảnh báo | Token |
+|---|---|---|
+| Có ít nhất một `repeals` | `relations.alert.repeals.title` | `--warn-bg`, `--warn-text`, `--warn-border` (lớp `.banner .banner-warning` có sẵn) |
+| Không có `repeals`, có ít nhất một `amends` | `relations.alert.amends.title` | như trên |
+| Cả hai | Dùng tiêu đề `repeals` (nặng hơn), danh sách bên dưới liệt kê **cả** mục `repeals` và `amends` | như trên |
+
+- Dùng màu cảnh báo (hổ phách), **không** dùng `--error-*`: đây là thông tin nghiệp vụ, không phải sự cố hệ thống.
+- Viền trái dày 4px bằng `--warn-border` (giống `.card-data-error`) để nổi hơn banner stale thông thường.
+- Nội dung: tiêu đề (đậm) → một câu giải thích → danh sách gạch đầu dòng, mỗi dòng: `{label} {documentNumber}, {khoảng hiệu lực}` → link nội bộ "Xem văn bản liên quan" cuộn tới mục B và chuyển focus vào tiêu đề mục B.
+- Thứ tự dòng: mục `repeals` trước, `amends` sau; trong cùng loại giữ thứ tự API.
+- Có ký hiệu cảnh báo trước tiêu đề nhưng là trang trí (`aria-hidden`); tiêu đề chữ tự đủ nghĩa.
+- Không đổi màu/trạng thái `EffectiveBadge` của điều khoản vì cảnh báo này (DA-16).
+- Chỉ `incoming` mới gây cảnh báo. `outgoing` repeals/amends (văn bản đang xem sửa văn bản khác) và mọi `guides` / `consolidates` **không** gây cảnh báo.
+
+### 11.3 Mỗi mục quan hệ (RelationItem)
+
+Thứ tự đọc, không được bỏ vùng nào:
+
+| Vùng | Field | Hiển thị |
+|---|---|---|
+| Nhãn quan hệ | `label` | Nguyên văn từ API. Dạng tag nhỏ. Với `incoming` + `repeals`/`amends`: lớp `.warn-label` (warn tokens). Còn lại: viền `--border-soft`, chữ `--muted`. |
+| Văn bản | `documentNumber` · `title` | `documentNumber` đậm 14px/600, `title` 14px `--text`. Là chữ thường, **không** phải link (DA-15). `title` tối đa 2 dòng rồi ellipsis. |
+| Khoảng hiệu lực | `effectiveFrom`, `effectiveTo` | Text 12px `--muted`, dùng lại đúng câu của badge: `card.effective.open` / `card.effective.closed`. Không tô màu xanh "applicable" — tránh nhầm với trạng thái hiệu lực của điều khoản. |
+| Nguồn | `sourceUrl` | Dùng lại `SourceLink` (tab mới, hostname, xử lý URL không hợp lệ như card). |
+
+Mỗi mục là một khối viền `--border-soft`, bo 6px, padding 12px, cách nhau 8px. `relationType` không hiển thị ra chữ (đã nằm trong `label`).
+
+### 11.4 Nhóm
+
+- Hai nhóm, thứ tự cố định: `incoming` trước ("Văn bản khác tác động lên văn bản này"), `outgoing` sau ("Văn bản này tác động lên văn bản khác"). Lý do: `incoming` là thứ ảnh hưởng tới hiệu lực của nội dung đang đọc.
+- Nhóm rỗng thì ẩn cả tiêu đề nhóm. Cả hai rỗng thì hiện trạng thái rỗng.
+- Dưới tiêu đề mục luôn có dòng ngữ cảnh `relations.context` kèm `asOf` — cùng lý do với `ResultContext`.
+
+### 11.5 Trạng thái
+
+| Trạng thái | Mục B hiển thị | Vị trí A |
+|---|---|---|
+| `loading` | Dòng `relations.loading` (12px `--muted`) + 2 thanh skeleton `.sk`; container `aria-busy="true"` | Không có gì |
+| `success`, có dữ liệu | Dòng ngữ cảnh + nhóm như 11.4 | Cảnh báo nếu thỏa 11.2 |
+| `success`, hai mảng rỗng | `relations.empty` + `relations.empty.note` (14px `--muted`) | Không có gì |
+| `error` | Banner nhỏ `.banner .banner-error` **trong mục B**, copy theo mã lỗi (`ui-copy.md` mục 10.1), kèm `requestId` + nút sao chép; nút "Thử lại" chỉ với 503/500/lỗi mạng | Không có gì |
+
+Quy tắc bắt buộc:
+
+- **Lỗi của mục này không bao giờ ảnh hưởng phần còn lại của panel.** Heading, badge, body, nguồn, "Thông tin phiên bản" đã hiển thị thì giữ nguyên. Không đóng panel, không thay panel bằng `ErrorState`, không hiện banner ở danh sách kết quả phía sau.
+- Khi lỗi, copy phải nói rõ **chưa kiểm tra được** việc sửa đổi/bãi bỏ. Vắng cảnh báo A trong lúc loading/lỗi không có nghĩa là văn bản còn nguyên.
+- Trạng thái rỗng nói "trong dữ liệu hiện có", không khẳng định văn bản chưa từng bị sửa đổi.
+- Thử lại chỉ gọi lại `/relations`, không tải lại điều khoản.
+
+### 11.6 Responsive và accessibility
+
+- Panel đã là 480px (desktop) / toàn màn hình (mobile); mục này chỉ xếp dọc, không cần breakpoint riêng.
+- Mục B là `<section aria-labelledby>` với `<h3>` "Văn bản liên quan" (có `tabindex="-1"` để nhận focus từ link trong cảnh báo).
+- Cảnh báo A có `role="status"` để screen reader đọc khi xuất hiện (không dùng `alert`/`assertive`).
+- Mỗi nhóm là `<ul>`, mỗi mục là `<li>`.
+- Thứ tự Tab trong panel: Đóng → "Xem văn bản liên quan" (nếu có cảnh báo) → Xem nguồn / Sao chép link nguồn → nguồn của từng mục quan hệ → Thử lại / Sao chép mã (nếu lỗi) → Sao chép mã phiên bản. Focus trap hiện có tự bao gồm các phần tử mới.
