@@ -7,7 +7,7 @@
     "dev:api": "tsx watch src/taxlaw/http/server.ts",
     "start:api": "tsx src/taxlaw/http/server.ts",
     "start:mcp": "tsx src/taxlaw/mcp/server.ts",
-    "inspect:mcp": "npx -y @modelcontextprotocol/inspector npx tsx src/taxlaw/mcp/server.ts",
+    "inspect:mcp": "npx -y @modelcontextprotocol/inspector --web -e DATABASE_URL=postgres://taxlaw:taxlaw@localhost:5432/taxlaw node node_modules/tsx/dist/cli.mjs src/taxlaw/mcp/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
