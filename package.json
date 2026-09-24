@@ -1,0 +1,33 @@
+{
+  "name": "tra-cuu-luat-thue",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev:api": "tsx watch src/taxlaw/http/server.ts",
+    "start:api": "tsx src/taxlaw/http/server.ts",
+    "start:mcp": "tsx src/taxlaw/mcp/server.ts",
+    "inspect:mcp": "npx -y @modelcontextprotocol/inspector npx tsx src/taxlaw/mcp/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run tests/integration-postgres.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "fastify": "^5.12.5",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/pg": "^8.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}
