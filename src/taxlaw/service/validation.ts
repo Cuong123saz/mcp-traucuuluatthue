@@ -28,6 +28,16 @@ export interface RawSearchInput {
     offset?: unknown;
 }
 
+export interface ValidatedRelationsInput {
+    documentNumber: string;
+    asOf: DateString;
+}
+
+export interface RawRelationsInput {
+    documentNumber?: unknown;
+    asOf?: unknown;
+}
+
 export interface RawProvisionInput {
     documentNumber?: unknown;
     articleKey?: unknown;
@@ -93,6 +103,22 @@ export function validateProvisionInput(raw: RawProvisionInput): ValidatedProvisi
         articleKey: articleKey as string,
         asOf: asOf as DateString
     };
+}
+
+export function validateRelationsInput(raw: RawRelationsInput): ValidatedRelationsInput {
+    const errors = new DetailCollector();
+
+    const documentNumber = requireTrimmedString(
+        raw.documentNumber,
+        "documentNumber",
+        STRING_LIMITS.identifierMin,
+        STRING_LIMITS.identifierMax,
+        errors
+    );
+    const asOf = requireCalendarDate(raw.asOf, "asOf", errors);
+
+    throwIfInvalid(errors);
+    return { documentNumber: documentNumber as string, asOf: asOf as DateString };
 }
 
 function requireTrimmedString(

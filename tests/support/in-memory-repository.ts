@@ -1,7 +1,9 @@
 import type { RequestContext } from "../../src/taxlaw/domain/dto.js";
 import type {
     FindProvisionAtInput,
+    FindRelationsAtInput,
     ProvisionRow,
+    RelationRow,
     SearchTaxLawAtInput,
     TaxLawRepository
 } from "../../src/taxlaw/repository/tax-law-repository.js";
@@ -20,7 +22,10 @@ import { FIXTURE_ROWS, type FixtureRow } from "./fixture.js";
 export class InMemoryTaxLawRepository implements TaxLawRepository {
     lastSearchCall?: SearchTaxLawAtInput;
 
-    constructor(private readonly rows: FixtureRow[] = FIXTURE_ROWS) {}
+    constructor(
+        private readonly rows: FixtureRow[] = FIXTURE_ROWS,
+        private readonly relationRows: RelationRow[] = []
+    ) {}
 
     async searchTaxLawAt(input: SearchTaxLawAtInput, _ctx: RequestContext): Promise<ProvisionRow[]> {
         this.lastSearchCall = input;
@@ -44,6 +49,11 @@ export class InMemoryTaxLawRepository implements TaxLawRepository {
             .filter((row) => row.documentNumber === input.documentNumber && row.articleKey === input.articleKey)
             .map(stripStatus);
     }
+
+    /** Relation rows are given pre-shaped, exactly as the SQL would return them. */
+    async findRelationsAt(input: FindRelationsAtInput, _ctx: RequestContext): Promise<RelationRow[]> {
+        return this.relationRows.filter((row) => row.documentNumber === input.documentNumber);
+    }
 }
 
 /** Repository that returns whatever it is given — for invariant-guard tests. */
@@ -57,6 +67,10 @@ export class StubTaxLawRepository implements TaxLawRepository {
     async findProvisionAt(): Promise<ProvisionRow[]> {
         return this.rows;
     }
+
+    async findRelationsAt(): Promise<RelationRow[]> {
+        return [];
+    }
 }
 
 /** Repository that always throws — for error-leak tests. */
@@ -68,6 +82,10 @@ export class ThrowingTaxLawRepository implements TaxLawRepository {
     }
 
     async findProvisionAt(): Promise<ProvisionRow[]> {
+        throw this.error;
+    }
+
+    async findRelationsAt(): Promise<RelationRow[]> {
         throw this.error;
     }
 }

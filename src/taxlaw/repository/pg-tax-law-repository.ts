@@ -2,10 +2,12 @@ import type pg from "pg";
 import { dependencyUnavailable, dataIntegrityError, internalError, isDomainError } from "../domain/errors.js";
 import type { RequestContext } from "../domain/dto.js";
 import { toDateString } from "../domain/date.js";
-import { GET_TAX_PROVISION_SQL, SEARCH_TAX_LAW_SQL } from "./sql.js";
+import { GET_DOCUMENT_RELATIONS_SQL, GET_TAX_PROVISION_SQL, SEARCH_TAX_LAW_SQL } from "./sql.js";
 import type {
     FindProvisionAtInput,
+    FindRelationsAtInput,
     ProvisionRow,
+    RelationRow,
     SearchTaxLawAtInput,
     TaxLawRepository
 } from "./tax-law-repository.js";
@@ -25,14 +27,23 @@ export class PgTaxLawRepository implements TaxLawRepository {
     constructor(private readonly pool: pg.Pool) {}
 
     async searchTaxLawAt(input: SearchTaxLawAtInput, ctx: RequestContext): Promise<ProvisionRow[]> {
-        return this.query(SEARCH_TAX_LAW_SQL, [input.q, input.asOf, input.readLimit, input.offset], ctx);
+        return this.query(SEARCH_TAX_LAW_SQL, [input.q, input.asOf, input.readLimit, input.offset], ctx, mapProvisionRow);
     }
 
     async findProvisionAt(input: FindProvisionAtInput, ctx: RequestContext): Promise<ProvisionRow[]> {
-        return this.query(GET_TAX_PROVISION_SQL, [input.documentNumber, input.articleKey, input.asOf], ctx);
+        return this.query(GET_TAX_PROVISION_SQL, [input.documentNumber, input.articleKey, input.asOf], ctx, mapProvisionRow);
     }
 
-    private async query(sql: string, values: unknown[], ctx: RequestContext): Promise<ProvisionRow[]> {
+    async findRelationsAt(input: FindRelationsAtInput, ctx: RequestContext): Promise<RelationRow[]> {
+        return this.query(GET_DOCUMENT_RELATIONS_SQL, [input.documentNumber, input.asOf], ctx, mapRelationRow);
+    }
+
+    private async query<T>(
+        sql: string,
+        values: unknown[],
+        ctx: RequestContext,
+        map: (raw: Record<string, unknown>) => T
+    ): Promise<T[]> {
         if (ctx.signal?.aborted) {
             throw dependencyUnavailable("Yêu cầu đã bị hủy trước khi truy vấn dữ liệu.");
         }
@@ -49,7 +60,7 @@ export class PgTaxLawRepository implements TaxLawRepository {
 
         try {
             const result = await client.query({ text: sql, values });
-            return result.rows.map(mapProvisionRow);
+            return result.rows.map(map);
         } catch (error) {
             throw translateDriverError(error);
         } finally {
@@ -90,6 +101,25 @@ function mapProvisionRow(raw: Record<string, unknown>): ProvisionRow {
         effectiveFrom: toDateString(raw.effectiveFrom) as string,
         effectiveTo: toDateString(raw.effectiveTo)
     };
+}
+
+function mapRelationRow(raw: Record<string, unknown>): RelationRow {
+    const direction = raw.direction === "outgoing" || raw.direction === "incoming" ? raw.direction : null;
+    return {
+        documentNumber: toTextOrEmpty(raw.documentNumber),
+        documentTitle: toTextOrEmpty(raw.documentTitle),
+        direction,
+        relationType: toTextOrNull(raw.relationType),
+        otherDocumentNumber: toTextOrNull(raw.otherDocumentNumber),
+        otherTitle: toTextOrNull(raw.otherTitle),
+        sourceUrl: toTextOrNull(raw.sourceUrl),
+        effectiveFrom: toDateString(raw.effectiveFrom),
+        effectiveTo: toDateString(raw.effectiveTo)
+    };
+}
+
+function toTextOrNull(value: unknown): string | null {
+    return typeof value === "string" ? value : null;
 }
 
 /** bigint columns arrive as strings from node-postgres; keep them as strings. */

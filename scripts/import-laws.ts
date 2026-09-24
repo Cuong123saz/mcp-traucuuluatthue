@@ -5,6 +5,11 @@
  *   npm run db:import -- --approve-as "Nguyễn Văn A"   # duyệt các file chưa có reviewedBy
  *   npm run db:import -- --remove-demo                  # xoá dữ liệu minh họa DEMO-TAX-*
  *
+ * Quan hệ giữa các văn bản khai báo trong "relations" của văn bản TÁC ĐỘNG, ví dụ trong file
+ * văn bản mới: { "type": "repeals", "target": "<số hiệu văn bản cũ>", "effectiveFrom": "2026-01-01" }.
+ * type: amends (sửa đổi, bổ sung) | repeals (bãi bỏ, thay thế) | guides (hướng dẫn) | consolidates (hợp nhất).
+ * Quan hệ được nạp sau cùng, nên văn bản đích phải có file trong data/laws.
+ *
  * Mỗi file là một văn bản. Nạp lại cùng số hiệu thì bản cũ trong DB bị thay hoàn toàn.
  * Chỉ version 'approved' mới hiện ra ở web và MCP, nên chỉ duyệt sau khi đã đối chiếu nguồn gốc.
  */
@@ -20,6 +25,13 @@ interface LawFile {
   issuedOn: string;
   sourceUrl: string;
   reviewedBy?: string;
+  relations?: {
+    type: "amends" | "repeals" | "guides" | "consolidates";
+    target: string;
+    effectiveFrom: string;
+    effectiveTo?: string | null;
+    sourceUrl?: string;
+  }[];
   versions: {
     versionNumber: number;
     title: string;
@@ -44,8 +56,11 @@ try {
     console.log("Đã xoá dữ liệu minh họa DEMO-TAX-*");
   }
 
-  for (const file of readdirSync(LAWS_DIR).filter((f) => f.endsWith(".json")).sort()) {
-    const raw = readFileSync(path.join(LAWS_DIR, file), "utf8");
+  const files = readdirSync(LAWS_DIR).filter((f) => f.endsWith(".json")).sort()
+    .map((file) => ({ file, raw: readFileSync(path.join(LAWS_DIR, file), "utf8") }));
+
+  // Lượt 1: văn bản, phiên bản, điều khoản.
+  for (const { file, raw } of files) {
     const law = JSON.parse(raw) as LawFile;
     const reviewer = law.reviewedBy?.trim() || approveAs?.trim();
 
@@ -89,6 +104,34 @@ try {
     } catch (error) {
       await client.query("ROLLBACK");
       console.error(`✗ ${file}: ${error instanceof Error ? error.message : error}`);
+      process.exitCode = 1;
+    }
+  }
+
+  // Lượt 2: quan hệ. Chạy sau khi mọi văn bản đã có trong DB.
+  for (const { file, raw } of files) {
+    const law = JSON.parse(raw) as LawFile;
+    if (!law.relations?.length) continue;
+
+    await client.query("BEGIN");
+    try {
+      const fromId = await insertOne("SELECT id FROM documents WHERE document_number = $1", [law.documentNumber]);
+      await client.query("DELETE FROM document_relations WHERE from_document_id = $1", [fromId]);
+      for (const r of law.relations) {
+        const { rows } = await client.query("SELECT id FROM documents WHERE document_number = $1", [r.target]);
+        if (rows.length === 0) throw new Error(`không có văn bản đích ${r.target} trong DB`);
+        await client.query(
+          `INSERT INTO document_relations
+             (from_document_id, to_document_id, relation_type, source_url, effective_from, effective_to)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [fromId, rows[0].id, r.type, r.sourceUrl ?? law.sourceUrl, r.effectiveFrom, r.effectiveTo ?? null]
+        );
+        console.log(`  ↳ ${law.documentNumber} --${r.type}--> ${r.target} (từ ${r.effectiveFrom})`);
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error(`✗ quan hệ trong ${file}: ${error instanceof Error ? error.message : error}`);
       process.exitCode = 1;
     }
   }

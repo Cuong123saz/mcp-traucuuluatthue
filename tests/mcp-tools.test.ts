@@ -24,9 +24,13 @@ afterEach(async () => {
 });
 
 describe("tool registration", () => {
-    it("exposes exactly the two MVP tools", async () => {
+    it("exposes exactly the two MVP tools plus get_document_relations", async () => {
         const { tools } = await (await connect()).request("tools/list");
-        expect(tools.map((tool: any) => tool.name).sort()).toEqual(["get_tax_provision", "search_tax_law"]);
+        expect(tools.map((tool: any) => tool.name).sort()).toEqual([
+            "get_document_relations",
+            "get_tax_provision",
+            "search_tax_law"
+        ]);
     });
 
     it("declares required fields and additionalProperties: false", async () => {

@@ -40,8 +40,30 @@ export interface FindProvisionAtInput {
     asOf: DateString;
 }
 
+export interface FindRelationsAtInput {
+    documentNumber: string;
+    asOf: DateString;
+}
+
 /**
- * Only the two MVP reads are declared. findDocumentAt / listProvisionsAt /
+ * Raw row from query-get-document-relations.sql. Zero rows means the document
+ * does not exist; a row with `direction === null` means it exists but has no
+ * relation in force at asOf.
+ */
+export interface RelationRow {
+    documentNumber: string;
+    documentTitle: string;
+    direction: "outgoing" | "incoming" | null;
+    relationType: string | null;
+    otherDocumentNumber: string | null;
+    otherTitle: string | null;
+    sourceUrl: string | null;
+    effectiveFrom: DateString | null;
+    effectiveTo: DateString | null;
+}
+
+/**
+ * Only the MVP reads plus document relations are declared. findDocumentAt / listProvisionsAt /
  * listApprovedVersions / listDocumentsAt from service-contract.md are out of
  * MVP scope (conflicts C-01/C-02/C-03) and deliberately absent rather than
  * stubbed.
@@ -54,4 +76,5 @@ export interface TaxLawRepository {
      * behind `LIMIT 1` is explicitly forbidden by service-contract.md.
      */
     findProvisionAt(input: FindProvisionAtInput, ctx: RequestContext): Promise<ProvisionRow[]>;
+    findRelationsAt(input: FindRelationsAtInput, ctx: RequestContext): Promise<RelationRow[]>;
 }

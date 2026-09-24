@@ -12,9 +12,9 @@ import { createSilentLogger, type Logger } from "../logging.js";
  * date/approval/version/pagination rules — it shares the exact Service the
  * Fastify routes use (mcp-tools.md).
  *
- * Only the two MVP tools are registered. get_document_timeline and
- * list_tax_documents are out of MVP scope (conflict-log A-11) and are not
- * declared, not even behind a flag.
+ * Registered: the two MVP tools plus get_document_relations.
+ * get_document_timeline and list_tax_documents are out of MVP scope
+ * (conflict-log A-11) and are not declared, not even behind a flag.
  */
 
 /**
@@ -34,6 +34,11 @@ const searchInputSchema = z.strictObject({
     // them in.
     limit: z.int().min(1).max(100).optional(),
     offset: z.int().min(0).optional()
+});
+
+const relationsInputSchema = z.strictObject({
+    documentNumber: z.string().min(1).max(100),
+    asOf: dateSchema
 });
 
 const provisionInputSchema = z.strictObject({
@@ -84,6 +89,25 @@ export function registerTaxLawTools(server: McpServer, options: RegisterOptions)
             run(logger, "get_tax_provision", async (ctx) => {
                 const result = await options.service.getTaxProvision(input, ctx);
                 return { payload: result, resultCount: 1 };
+            })
+    );
+
+    server.registerTool(
+        "get_document_relations",
+        {
+            title: "Get document relations",
+            description:
+                "List how a tax document relates to other documents on asOf: which documents it amends, " +
+                "repeals/replaces, guides or consolidates (outgoing), and which documents amend, repeal/replace, " +
+                "guide or consolidate it (incoming). Use it to check whether a document has been replaced or " +
+                "amended before relying on it. Only relations in force on asOf are returned.",
+            inputSchema: relationsInputSchema,
+            annotations: { readOnlyHint: true, openWorldHint: false }
+        },
+        async (input) =>
+            run(logger, "get_document_relations", async (ctx) => {
+                const result = await options.service.getDocumentRelations(input, ctx);
+                return { payload: result, resultCount: result.outgoing.length + result.incoming.length };
             })
     );
 

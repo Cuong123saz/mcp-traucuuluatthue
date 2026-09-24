@@ -1,6 +1,6 @@
 ---
 name: tax-law-lookup
-description: Trả lời câu hỏi về luật thuế Việt Nam bằng cách tra cứu qua MCP server tax-law (search_tax_law, get_tax_provision). Dùng khi người dùng hỏi quy định, mức thuế, hiệu lực của một văn bản thuế.
+description: Trả lời câu hỏi về luật thuế Việt Nam bằng cách tra cứu qua MCP server tax-law (search_tax_law, get_tax_provision, get_document_relations). Dùng khi người dùng hỏi quy định, mức thuế, hiệu lực của một văn bản thuế.
 ---
 
 # Tra cứu luật thuế qua MCP
@@ -11,7 +11,11 @@ description: Trả lời câu hỏi về luật thuế Việt Nam bằng cách t
 2. **Tìm kiếm:** gọi `search_tax_law` với `q` là 1–3 từ khóa chính (ví dụ "giảm trừ gia cảnh") và `asOf`.
    - Nếu không có kết quả thì thử lại một lần với từ đồng nghĩa hoặc từ ngắn hơn.
 3. **Lấy nguyên văn:** gọi `get_tax_provision` với `documentNumber`, `articleKey`, `asOf` cho điều khoản cần trích dẫn.
-4. **Trả lời:**
+4. **Kiểm tra quan hệ văn bản:** gọi `get_document_relations` với `documentNumber` và `asOf` khi:
+   - người dùng hỏi văn bản nào thay thế, sửa đổi, hướng dẫn văn bản nào;
+   - cần chắc chắn văn bản mình trích dẫn chưa bị văn bản khác sửa đổi tại ngày đó (xem danh sách `incoming`).
+   Muốn biết quan hệ bắt đầu từ khi nào thì tra ở ngày sau `effectiveFrom`, vì tool chỉ trả quan hệ đang có hiệu lực tại `asOf`.
+5. **Trả lời:**
    - Câu trả lời ngắn gọn trước.
    - Căn cứ: `Điều <articleKey>, <documentNumber>`, hiệu lực `<effectiveFrom>` đến `<effectiveTo hoặc "nay">`, kèm link `sourceUrl`.
    - Ghi rõ ngày asOf đã dùng để tra.

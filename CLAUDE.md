@@ -36,5 +36,5 @@ MCP server `tax-law` được khai báo trong `.mcp.json`, Claude Code tự kh�
 ## Việc đang mở
 
 - FR-01 / C-08 (frontend): response 200 thiếu nguồn hoặc sai khoảng hiệu lực không được ghi đè kết quả hợp lệ trước đó. Chi tiết ở `artifacts/coordinator/final-review-summary.md` mục 7.
-- Tool chưa làm: `get_document_timeline`, `list_tax_documents`.
+- Tool chưa làm: `get_document_timeline`, `list_tax_documents`. Đã có `get_document_relations` (REST `GET /relations`).
 - Đối chiếu nguyên văn và bổ sung thêm văn bản trong `data/laws/`.

@@ -5,6 +5,13 @@
   "issuedOn": "2025-10-17",
   "sourceUrl": "https://thuvienphapluat.vn/van-ban/Thue-Phi-Le-Phi/Nghi-quyet-110-2025-UBTVQH15-muc-giam-tru-gia-canh-thue-thu-nhap-ca-nhan-665865.aspx",
   "reviewedBy": "",
+  "relations": [
+    {
+      "type": "repeals",
+      "target": "954/2020/UBTVQH14",
+      "effectiveFrom": "2026-01-01"
+    }
+  ],
   "versions": [
     {
       "versionNumber": 1,

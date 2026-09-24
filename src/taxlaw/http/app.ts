@@ -62,6 +62,19 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         });
     });
 
+    app.get("/relations", async (request, reply) => {
+        const query = readQuery(request, ["documentNumber", "asOf"]);
+        const ctx = requestContext(request, reply);
+
+        const result = await options.service.getDocumentRelations(
+            { documentNumber: query.documentNumber, asOf: query.asOf },
+            ctx
+        );
+
+        logSuccess(logger, request, "GET /relations", result.outgoing.length + result.incoming.length);
+        return reply.code(200).send(successEnvelope(result, request.id));
+    });
+
     app.setNotFoundHandler((request, reply) => {
         const error = notFound("Không tìm thấy tài nguyên.");
         logger.log({
@@ -99,7 +112,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
 function readQuery(
     request: FastifyRequest,
     allowed: readonly string[]
-): { q?: string; asOf?: string; limit?: string; offset?: string } {
+): Record<string, string | undefined> {
     const raw = (request.query ?? {}) as Record<string, unknown>;
     const details: DomainErrorDetail[] = [];
     const result: Record<string, string | undefined> = {};

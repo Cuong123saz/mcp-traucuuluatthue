@@ -54,3 +54,31 @@ export const STRING_LIMITS = {
     identifierMin: 1,
     identifierMax: 100
 } as const;
+
+/**
+ * Loại quan hệ giữa hai văn bản (khớp CHECK của document_relations).
+ * amends = sửa đổi, bổ sung; repeals = bãi bỏ hoặc thay thế;
+ * guides = hướng dẫn thi hành; consolidates = hợp nhất.
+ */
+export type RelationType = "amends" | "repeals" | "guides" | "consolidates";
+
+export interface RelationItem {
+    relationType: RelationType;
+    /** Nhãn tiếng Việt, đã tính theo chiều quan hệ. */
+    label: string;
+    documentNumber: string;
+    title: string;
+    sourceUrl: string;
+    effectiveFrom: DateString;
+    effectiveTo: DateString | null;
+}
+
+export interface DocumentRelationsResult {
+    documentNumber: string;
+    title: string;
+    asOf: DateString;
+    /** Văn bản này tác động lên văn bản khác. */
+    outgoing: RelationItem[];
+    /** Văn bản khác tác động lên văn bản này. */
+    incoming: RelationItem[];
+}

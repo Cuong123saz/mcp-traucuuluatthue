@@ -1,11 +1,21 @@
 import { dataIntegrityError, notFound } from "../domain/errors.js";
 import { isCalendarDate, type DateString } from "../domain/date.js";
-import { PAGINATION_DEFAULTS, type ProvisionResult, type RequestContext, type SearchResult } from "../domain/dto.js";
-import type { ProvisionRow, TaxLawRepository } from "../repository/tax-law-repository.js";
+import {
+    PAGINATION_DEFAULTS,
+    type DocumentRelationsResult,
+    type ProvisionResult,
+    type RelationItem,
+    type RelationType,
+    type RequestContext,
+    type SearchResult
+} from "../domain/dto.js";
+import type { ProvisionRow, RelationRow, TaxLawRepository } from "../repository/tax-law-repository.js";
 import {
     validateProvisionInput,
+    validateRelationsInput,
     validateSearchInput,
     type RawProvisionInput,
+    type RawRelationsInput,
     type RawSearchInput
 } from "./validation.js";
 
@@ -68,6 +78,42 @@ export class TaxLawService {
     }
 
     /**
+     * Quan hệ còn hiệu lực tại asOf của một văn bản, theo cả hai chiều.
+     * Văn bản không tồn tại là NOT_FOUND; tồn tại mà không có quan hệ thì trả
+     * hai danh sách rỗng.
+     */
+    async getDocumentRelations(raw: RawRelationsInput, ctx: RequestContext): Promise<DocumentRelationsResult> {
+        const input = validateRelationsInput(raw);
+        const rows = await this.repository.findRelationsAt(input, ctx);
+
+        if (rows.length === 0) {
+            throw notFound("Không tìm thấy văn bản.");
+        }
+
+        const first = rows[0]!;
+        assertNonBlank(first.documentNumber, "documentNumber");
+        assertNonBlank(first.documentTitle, "title");
+
+        const outgoing: RelationItem[] = [];
+        const incoming: RelationItem[] = [];
+        for (const row of rows) {
+            if (row.direction === null) {
+                continue;
+            }
+            const item = toRelationItem(row, input.asOf);
+            (row.direction === "outgoing" ? outgoing : incoming).push(item);
+        }
+
+        return {
+            documentNumber: first.documentNumber,
+            title: first.documentTitle,
+            asOf: input.asOf,
+            outgoing,
+            incoming
+        };
+    }
+
+    /**
      * Maps a row to the wire DTO and enforces the provenance invariants. A row
      * without a source URL or a usable effective interval is a data defect: it
      * must surface as an error, never as a valid-looking success item
@@ -100,6 +146,40 @@ export class TaxLawService {
             effectiveTo: row.effectiveTo
         };
     }
+}
+
+const RELATION_LABELS: Record<RelationType, { outgoing: string; incoming: string }> = {
+    amends: { outgoing: "Sửa đổi, bổ sung", incoming: "Được sửa đổi, bổ sung bởi" },
+    repeals: { outgoing: "Bãi bỏ / thay thế", incoming: "Bị bãi bỏ / thay thế bởi" },
+    guides: { outgoing: "Hướng dẫn thi hành", incoming: "Được hướng dẫn bởi" },
+    consolidates: { outgoing: "Hợp nhất", incoming: "Được hợp nhất bởi" }
+};
+
+function toRelationItem(row: RelationRow, asOf: DateString): RelationItem {
+    const type = row.relationType as RelationType | null;
+    if (type === null || !(type in RELATION_LABELS)) {
+        throw dataIntegrityError("Dữ liệu sai loại quan hệ văn bản.");
+    }
+    assertNonBlank(row.otherDocumentNumber ?? "", "relation.documentNumber");
+    assertNonBlank(row.otherTitle ?? "", "relation.title");
+    assertSourceUrl(row.sourceUrl ?? "");
+    const effectiveFrom = row.effectiveFrom ?? "";
+    if (!isCalendarDate(effectiveFrom) || effectiveFrom > asOf) {
+        throw dataIntegrityError("Quan hệ văn bản trả về không có hiệu lực tại ngày yêu cầu.");
+    }
+    if (row.effectiveTo !== null && (!isCalendarDate(row.effectiveTo) || asOf > row.effectiveTo)) {
+        throw dataIntegrityError("Quan hệ văn bản trả về không có hiệu lực tại ngày yêu cầu.");
+    }
+
+    return {
+        relationType: type,
+        label: RELATION_LABELS[type][row.direction === "outgoing" ? "outgoing" : "incoming"],
+        documentNumber: row.otherDocumentNumber!,
+        title: row.otherTitle!,
+        sourceUrl: row.sourceUrl!,
+        effectiveFrom,
+        effectiveTo: row.effectiveTo
+    };
 }
 
 function assertNonBlank(value: string, field: string): void {

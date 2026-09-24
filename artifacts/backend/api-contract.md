@@ -42,6 +42,20 @@ Query: `limit?`, `offset?`, không nhận `asOf`. Trả lịch sử versions có
 
 `200 {"data":{"documentNumber":"...","title":"...","issuingBody":"...","issuedOn":"YYYY-MM-DD","sourceUrl":"https://...","versions":[VersionSummary...]},"pagination":{...},"requestId":"..."}`. Không có document: 404; document có nhưng chưa có version approved: `versions: []`. Cần query repository mới; schema đủ cột để thực hiện.
 
+### `GET /relations`
+
+Query: `documentNumber` (bắt buộc), `asOf` (bắt buộc, `YYYY-MM-DD`). Tham số lạ hoặc lặp bị từ chối.
+
+200: `{ data: { documentNumber, title, asOf, outgoing: RelationItem[], incoming: RelationItem[] }, requestId }`
+
+`RelationItem = { relationType: "amends"|"repeals"|"guides"|"consolidates", label, documentNumber, title, sourceUrl, effectiveFrom, effectiveTo|null }`
+
+- `outgoing`: văn bản này tác động lên văn bản khác. `incoming`: văn bản khác tác động lên văn bản này.
+- `label` là nhãn tiếng Việt theo chiều quan hệ, ví dụ "Bãi bỏ / thay thế" và "Bị bãi bỏ / thay thế bởi".
+- Chỉ trả quan hệ có hiệu lực tại `asOf` (hai đầu bao gồm). Văn bản có tồn tại nhưng không có quan hệ thì trả hai mảng rỗng.
+- Văn bản không tồn tại trả `NOT_FOUND` (404). Quan hệ thiếu nguồn hoặc sai khoảng hiệu lực trả `DATA_INTEGRITY_ERROR`.
+- SQL: `artifacts/db/query-get-document-relations.sql`.
+
 ## Lỗi
 
 Lỗi `{ "error":{"code":"INVALID_ARGUMENT|NOT_FOUND|DATA_INTEGRITY_ERROR|DEPENDENCY_UNAVAILABLE|INTERNAL_ERROR","message":"...","details":[...]},"requestId":"..." }`. HTTP mapping: 400 validation, 404 không tìm thấy, 409 integrity, 503 timeout/DB unavailable, 500 lỗi ngoài dự kiến. Không đưa SQL, raw query, body hay stack ra response.

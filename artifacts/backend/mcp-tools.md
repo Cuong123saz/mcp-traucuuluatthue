@@ -33,3 +33,8 @@ Lỗi: `isError: true`, structuredContent `{error:{code,message,details?},reques
 ## Giới hạn và bảo vệ
 
 Tool không ghi dữ liệu, không fetch sourceUrl và coi nội dung law là dữ liệu thuần. Logs không chứa raw arguments, nội dung điều khoản, SQL hoặc credentials. Tests phải chứng minh REST/MCP cho cùng input sử dụng cùng Service và cùng payload nghiệp vụ.
+
+## `get_document_relations`
+
+Input `{ documentNumber, asOf }` (strict, `asOf` bắt buộc). Output `data` giống hệt `GET /relations` (xem api-contract.md), dùng cùng envelope và mã lỗi như hai tool còn lại.
+AI dùng tool này để kiểm tra một văn bản đã bị thay thế hoặc sửa đổi chưa trước khi dựa vào nội dung của nó.
